@@ -1,0 +1,280 @@
+12.13 2:29 AM
+index. html
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Special Question </title>
+  <style>
+    :root{
+      --bg:#fff7f8;
+      --accent:#e33451;
+      --card:#fff;
+      --text:#2b2b2b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at 10% 10%, #fff1f2 0%, var(--bg) 40%), #fff;
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .card{
+      width:100%;
+      max-width:720px;
+      background:var(--card);
+      border-radius:20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      padding:32px;
+      text-align:center;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .heart {
+      font-size:88px;
+      line-height:1;
+      color:var(--accent);
+      transform:scale(1);
+      display:inline-block;
+      animation: pulse 1.6s ease-in-out infinite;
+      text-shadow: 0 6px 20px rgba(227,52,81,0.15);
+    }
+    @keyframes pulse{
+      0%{transform:scale(1)}
+      50%{transform:scale(1.06)}
+      100%{transform:scale(1)}
+    }
+
+    h1{
+      margin:12px 0 6px;
+      font-size:28px;
+    }
+    p.lead{
+      margin:0 0 20px;
+      color:#555;
+    }
+
+    .buttons{
+      display:flex;
+      gap:14px;
+      justify-content:center;
+      margin-top:18px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      padding:12px 18px;
+      border-radius:12px;
+      font-weight:600;
+      cursor:pointer;
+      border:0;
+      outline:0;
+      min-width:140px;
+    }
+    .btn-yes{
+      background:linear-gradient(90deg,#ff6b80,#e33451);
+      color:white;
+      box-shadow: 0 8px 24px rgba(227,52,81,0.25);
+    }
+    .btn-no{
+      background:transparent;
+      border:2px solid #ddd;
+      color:var(--text);
+    }
+
+    /*小心: modal */
+    .modal{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,0.35);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .25s ease;
+    }
+    .modal.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+    .modal .box{
+      width:90%;
+      max-width:520px;
+      background:var(--card);
+      padding:24px;
+      border-radius:16px;
+      text-align:center;
+      transform:translateY(12px);
+      transition:transform .25s ease;
+    }
+    .modal.open .box{ transform:translateY(0) }
+
+    /* small note */
+    .note{
+      margin-top:12px;
+      color:#666;
+      font-size:13px;
+    }
+
+    /* playful no-escape */
+    .btn-no:hover{ transform:translateY(-3px) }
+
+    /* confetti canvas sits behind everything */
+    canvas#confetti{
+      position:fixed;
+      left:0; top:0;
+      width:100%; height:100%;
+      pointer-events:none;
+      z-index:9999;
+    }
+
+    /* responsive */
+    @media (max-width:420px){
+      .heart{font-size:64px}
+      .btn{min-width:120px;padding:10px 14px}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <main class="card" role="main" aria-labelledby="title">
+    <div class="heart" aria-hidden="true">❤</div>
+    <h1 id="title">একটা প্রশ্ন আছে তোমার কাছে...</h1>
+    <p class="lead">আমার সাথে জীবনটা ভাগ করবে? তুমি যদি বলো "হ্যাঁ", আমি আজীবন তোমার পাশে থাকার প্রতিশ্রুতি দিচ্ছি।</p>
+
+    <div class="buttons">
+      <button class="btn btn-yes" id="yesBtn">হ্যাঁ, অবশ্যই </button>
+      <button class="btn btn-no" id="noBtn">এখন না</button>
+    </div>
+
+    <p class="note">(এটা দেখাও যখন তোমার GF একটু নরম মুডে থাকবে — আলপ আলো, হাসি থাকলে ভাল লাগবে)</p>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="box" id="modalBox">
+      <h2>ধন্যবাদ! ❤️</h2>
+      <p id="modalMsg">তুমি আমার জীবনের সবচেয়ে সুন্দর মানুষ — আমি সত্যিই খুশি! চলি একসাথে নতুন অধ্যায় শুরু করি।</p>
+      <div style="margin-top:16px">
+        <button class="btn btn-yes" id="closeBtn">বাহ! চল</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simple confetti system
+    (function(){
+      const canvas = document.getElementById('confetti');
+      const ctx = canvas.getContext('2d');
+      let W = canvas.width = innerWidth;
+      let H = canvas.height = innerHeight;
+      window.addEventListener('resize', () => {
+        W = canvas.width = innerWidth;
+        H = canvas.height = innerHeight;
+      });
+
+      function rand(min,max){ return Math.random()*(max-min)+min; }
+
+      class Particle {
+        constructor(){
+          this.reset();
+        }
+        reset(){
+          this.x = rand(0,W);
+          this.y = rand(-H,0);
+          this.w = rand(6,14);
+          this.h = rand(8,18);
+          this.vx = rand(-1.5,1.5);
+          this.vy = rand(2,6);
+          this.spin = rand(-0.2,0.2);
+          this.angle = rand(0,Math.PI*2);
+          this.color = ["#ff6b80","#ffb3c6","#ffd6e0","#e33451","#ff8aa2"][Math.floor(rand(0,5))];
+          this.opacity = rand(0.9,1);
+        }
+        update(){
+          this.x += this.vx;
+          this.y += this.vy;
+          this.angle += this.spin;
+          if(this.y > H + 50) this.reset();
+        }
+        draw(ctx){
+          ctx.save();
+          ctx.translate(this.x,this.y);
+          ctx.rotate(this.angle);
+          ctx.globalAlpha = this.opacity;
+          ctx.fillStyle = this.color;
+          ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+          ctx.restore();
+        }
+      }
+
+      let particles = [];
+      let animId = null;
+      function startConfetti(count=120){
+        particles = [];
+        for(let i=0;i<count;i++) particles.push(new Particle());
+        let ticks = 0;
+        function loop(){
+          ticks++;
+          ctx.clearRect(0,0,W,H);
+          for(let p of particles){
+            p.update();
+            p.draw(ctx);
+          }
+          animId = requestAnimationFrame(loop);
+        }
+        if(animId) cancelAnimationFrame(animId);
+        loop();
+        // auto stop after 6s
+        setTimeout(stopConfetti, 6000);
+      }
+      function stopConfetti(){
+        if(animId) cancelAnimationFrame(animId);
+        ctx.clearRect(0,0,W,H);
+      }
+
+      // Buttons and modal logic
+      const yesBtn = document.getElementById('yesBtn');
+      const noBtn = document.getElementById('noBtn');
+      const modal = document.getElementById('modal');
+      const closeBtn = document.getElementById('closeBtn');
+
+      yesBtn.addEventListener('click', () => {
+        // open modal, run confetti
+        modal.classList.add('open');
+        startConfetti(140);
+        // change modal message optionally
+        document.getElementById('modalMsg').textContent = "তুমি 'হ্যাঁ' বললে আমার কাছে সবচেয়ে বড় উপহার। আমি রাবসারি করে রাখলাম — চল একসাথে থাকি।";
+      });
+
+      closeBtn.addEventListener('click', () => {
+        modal.classList.remove('open');
+      });
+
+      noBtn.addEventListener('click', () => {
+        // playful nudge: move the "No" button randomly to make it cute
+        for(let i=0;i<6;i++){
+          setTimeout(()=>{
+            noBtn.style.transform = `translate(${Math.random()*80-40}px, ${Math.random()*20-10}px)`;
+          }, i*80);
+        }
+        setTimeout(()=>{ noBtn.style.transform = 'translate(0,0)'; }, 700);
+      });
+
+      // Accessibility: Enter key triggers "yes" if focused
+      document.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter') yesBtn.click();
+      });
+
+    })();
+  </script>
+</body>
+</html>
